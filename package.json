@@ -16,7 +16,7 @@
     "build": "tsdx build --name tailwindui --tsconfig ./tsconfig.tsdx.json",
     "test": "tsdx test --passWithNoTests",
     "playground": "next dev",
-    "lint": "tsdx lint",
+    "lint": "tsdx lint src pages",
     "prepare": "npm run build",
     "commit": "git-cz",
     "semantic-release": "semantic-release"
