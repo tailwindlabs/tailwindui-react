@@ -1,9 +1,13 @@
 name: Release
 on:
   push:
-    branches:
-      - master # For @tailwindui/react@latest
-      - develop # For @tailwindui/react@next
+    # Skip automatic release for now
+    branches-ignore:
+      - '**'
+    # Re-enable this once we are ready for a 1.0.0 release!
+    # branches:
+    # - master # For @tailwindui/react@latest
+    # - develop # For @tailwindui/react@next
 jobs:
   build:
     runs-on: ubuntu-latest
