@@ -1,6 +1,6 @@
 {
   "name": "@tailwindui/react",
-  "version": "0.0.0-development",
+  "version": "0.1.0",
   "main": "dist/index.js",
   "typings": "dist/index.d.ts",
   "module": "dist/tailwindui.esm.js",
