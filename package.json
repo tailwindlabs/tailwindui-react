@@ -1,6 +1,9 @@
 {
   "name": "@tailwindui/react",
   "version": "0.0.0-development",
+  "main": "dist/index.js",
+  "typings": "dist/index.d.ts",
+  "module": "dist/tailwindui.esm.js",
   "license": "MIT",
   "files": [
     "dist"
@@ -9,17 +12,24 @@
     "node": ">=10"
   },
   "scripts": {
+    "start": "tsdx watch",
+    "build": "tsdx build --name tailwindui --tsconfig ./tsconfig.tsdx.json",
+    "test": "tsdx test --passWithNoTests",
+    "playground": "next dev",
+    "lint": "tsdx lint src pages",
+    "prepare": "npm run build",
     "commit": "git-cz",
     "semantic-release": "semantic-release"
   },
   "husky": {
     "hooks": {
+      "pre-commit": "npm run lint",
       "commit-msg": "commitlint -E HUSKY_GIT_PARAMS"
     }
   },
   "prettier": {
-    "printWidth": 80,
-    "semi": true,
+    "printWidth": 100,
+    "semi": false,
     "singleQuote": true,
     "trailingComma": "es5"
   },
@@ -28,12 +38,39 @@
       "path": "cz-conventional-changelog"
     }
   },
+  "release": {
+    "branches": [
+      "+([0-9])?(.{+([0-9]),x}).x",
+      "master",
+      {
+        "name": "develop",
+        "channel": "next"
+      }
+    ]
+  },
+  "peerDependencies": {
+    "react": ">=16"
+  },
   "devDependencies": {
     "@commitlint/cli": "^9.1.2",
     "@commitlint/config-conventional": "^9.1.2",
-    "commitizen": "^4.1.2",
+    "@tailwindcss/ui": "^0.5.0",
+    "@testing-library/react": "^10.4.9",
+    "@types/node": "^14.6.0",
+    "@types/react-dom": "^16.9.8",
+    "@types/react": "^16.9.46",
+    "babel-jest": "^26.3.0",
+    "commitizen": "^4.1.5",
     "cz-conventional-changelog": "^3.2.0",
     "husky": "^4.2.5",
-    "semantic-release": "^17.1.1"
+    "next": "9.5.2",
+    "react-dom": "^16.13.1",
+    "react": "^16.13.1",
+    "semantic-release": "^17.1.1",
+    "snapshot-diff": "^0.8.1",
+    "tailwindcss": "^1.7.3",
+    "tsdx": "^0.13.3",
+    "tslib": "^2.0.1",
+    "typescript": "^4.0.2"
   }
 }
