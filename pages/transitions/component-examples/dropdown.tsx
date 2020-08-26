@@ -9,7 +9,7 @@ export default function Home() {
         <title>Transition Component - Playground</title>
       </Head>
 
-      <div className="flex items-center justify-center w-screen h-screen p-12 bg-gray-50">
+      <div className="flex items-center justify-center w-screen h-full p-12 bg-gray-50">
         <Dropdown />
       </div>
     </>
