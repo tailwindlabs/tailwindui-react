@@ -99,7 +99,7 @@ function MyComponent() {
 }
 ```
 
-The `Transition` component will render a `div` by default, but you can use the `as` prop to render a different element instead if needed. Any other HTML attributes (like `class`) can be added directly to the `Transition` the same way they would be to regular elements.
+The `Transition` component will render a `div` by default, but you can use the `as` prop to render a different element instead if needed. Any other HTML attributes (like `className`) can be added directly to the `Transition` the same way they would be to regular elements.
 
 ```tsx
 import { Transition } from '@tailwindui/react'
