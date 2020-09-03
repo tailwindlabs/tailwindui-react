@@ -6,6 +6,16 @@ import { useRouter } from 'next/router'
 import 'tailwindcss/tailwind.css'
 import { ExamplesType } from '../playground-utils/resolve-all-examples'
 import { useDisposables } from '../src/hooks/use-disposables'
+import { PropsOf } from '../src/types'
+
+function NextLink(props: PropsOf<'a'>) {
+  const { href, children, ...rest } = props
+  return (
+    <Link href={href}>
+      <a {...rest}>{children}</a>
+    </Link>
+  )
+}
 
 enum KeyDisplayMac {
   ArrowUp = '↑',
@@ -121,15 +131,13 @@ function MyApp({ Component, pageProps }) {
 
       <div className="flex flex-col h-screen overflow-hidden font-sans antialiased text-gray-900 bg-white">
         <header className="relative z-10 flex items-center justify-between flex-shrink-0 px-4 py-4 bg-white border-b border-gray-200 sm:px-6 lg:px-8">
-          <Link href="/">
-            <a>
-              <img
-                className="w-auto h-6"
-                src="https://tailwindui.com/img/tailwindui-logo.svg"
-                alt="Tailwind UI"
-              />
-            </a>
-          </Link>
+          <NextLink href="/">
+            <img
+              className="w-auto h-6"
+              src="https://tailwindui.com/img/tailwindui-logo.svg"
+              alt="Tailwind UI"
+            />
+          </NextLink>
           {allExamples.length > 0 && (
             <div>
               <select

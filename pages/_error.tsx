@@ -5,6 +5,16 @@ import Head from 'next/head'
 import Link from 'next/link'
 
 import { ExamplesType, resolveAllExamples } from '../playground-utils/resolve-all-examples'
+import { PropsOf } from '../src/types'
+
+function NextLink(props: PropsOf<'a'>) {
+  const { href, children, ...rest } = props
+  return (
+    <Link href={href}>
+      <a {...rest}>{children}</a>
+    </Link>
+  )
+}
 
 export async function getServerSideProps({ req }: { req: NextApiRequest }) {
   return {
@@ -44,9 +54,9 @@ export function Examples(props: { examples: ExamplesType[] }) {
           {example.children ? (
             <h3 className="text-xl capitalize">{example.name}</h3>
           ) : (
-            <Link href={example.path}>
-              <a className="capitalize">{example.name}</a>
-            </Link>
+            <NextLink href={example.path} className="capitalize">
+              {example.name}
+            </NextLink>
           )}
           {example.children && <Examples examples={example.children} />}
         </li>
