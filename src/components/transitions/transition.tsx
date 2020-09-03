@@ -36,10 +36,10 @@ type TransitionClasses = Partial<{
   leaveTo: string
 }>
 
-type HTMlTags = keyof JSX.IntrinsicElements
-type HTMLTagProps<TTag extends HTMlTags> = JSX.IntrinsicElements[TTag]
+type HTMLTags = keyof JSX.IntrinsicElements
+type HTMLTagProps<TTag extends HTMLTags> = JSX.IntrinsicElements[TTag]
 
-type AsShortcut<TTag extends HTMlTags> = {
+type AsShortcut<TTag extends HTMLTags> = {
   children?: React.ReactNode
   as?: TTag
 } & Omit<HTMLTagProps<TTag>, 'ref'>
@@ -50,7 +50,7 @@ type AsRenderPropFunction = {
 
 type BaseConfig = Partial<{ appear: boolean }>
 
-type TransitionChildProps<TTag extends HTMlTags> = BaseConfig &
+type TransitionChildProps<TTag extends HTMLTags> = BaseConfig &
   (AsShortcut<TTag> | AsRenderPropFunction) &
   TransitionClasses
 
@@ -119,7 +119,7 @@ function useNesting(done?: () => void) {
   )
 }
 
-function TransitionChild<TTag extends HTMlTags = 'div'>(props: TransitionChildProps<TTag>) {
+function TransitionChild<TTag extends HTMLTags = 'div'>(props: TransitionChildProps<TTag>) {
   const { children, enter, enterFrom, enterTo, leave, leaveFrom, leaveTo, ...rest } = props
   const container = React.useRef<HTMLElement | null>(null)
   const [state, setState] = React.useState(TreeStates.Visible)
@@ -224,7 +224,7 @@ function TransitionChild<TTag extends HTMlTags = 'div'>(props: TransitionChildPr
   )
 }
 
-export function Transition<TTag extends HTMlTags = 'div'>(
+export function Transition<TTag extends HTMLTags = 'div'>(
   props: TransitionChildProps<TTag> & { show: boolean; appear?: boolean }
 ) {
   const { show, appear = false, ...rest } = props
