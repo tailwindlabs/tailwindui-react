@@ -338,84 +338,90 @@ type ItemsPropsWeControl =
   | 'role'
   | 'tabIndex'
 
-const Items = React.forwardRef<HTMLDivElement, Omit<PropsOf<'div'>, ItemsPropsWeControl>>(
-  function Items(props, ref) {
-    const [state, dispatch] = useMenuContext([Menu.name, Items.name].join('.'))
-    const itemsRef = useSyncRefs(state.itemsRef, ref)
+const Items = React.forwardRef<
+  HTMLDivElement,
+  Omit<PropsOf<'div'>, ItemsPropsWeControl> & TransitionClasses
+>(function Items(props, ref) {
+  const { enter, enterFrom, enterTo, leave, leaveFrom, leaveTo, ...otherProps } = props
 
-    const id = `tailwindui-menu-items-${useId()}`
-    const d = useDisposables()
-    const searchDisposables = useDisposables()
+  const [state, dispatch] = useMenuContext([Menu.name, Items.name].join('.'))
+  const itemsRef = useSyncRefs(state.itemsRef, ref)
 
-    function handleKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
-      searchDisposables.dispose()
+  const id = `tailwindui-menu-items-${useId()}`
+  const d = useDisposables()
+  const searchDisposables = useDisposables()
 
-      switch (event.key) {
-        // Ref: https://www.w3.org/TR/wai-aria-practices-1.2/#keyboard-interaction-12
+  function handleKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    searchDisposables.dispose()
 
-        case Key.Enter:
-          dispatch({ type: ActionTypes.CloseMenu })
-          if (state.activeItemIndex !== null) {
-            const { id } = state.items[state.activeItemIndex]
-            document.getElementById(id)?.click()
-            d.nextFrame(() => state.buttonRef.current?.focus())
-          }
-          break
+    switch (event.key) {
+      // Ref: https://www.w3.org/TR/wai-aria-practices-1.2/#keyboard-interaction-12
 
-        case Key.ArrowDown:
-          return dispatch({ type: ActionTypes.GoToItem, focus: Focus.NextItem })
-
-        case Key.ArrowUp:
-          return dispatch({ type: ActionTypes.GoToItem, focus: Focus.PreviousItem })
-
-        case Key.Home:
-        case Key.PageUp:
-          return dispatch({ type: ActionTypes.GoToItem, focus: Focus.FirstItem })
-
-        case Key.End:
-        case Key.PageDown:
-          return dispatch({ type: ActionTypes.GoToItem, focus: Focus.LastItem })
-
-        case Key.Escape:
-          dispatch({ type: ActionTypes.CloseMenu })
+      case Key.Enter:
+        dispatch({ type: ActionTypes.CloseMenu })
+        if (state.activeItemIndex !== null) {
+          const { id } = state.items[state.activeItemIndex]
+          document.getElementById(id)?.click()
           d.nextFrame(() => state.buttonRef.current?.focus())
-          break
+        }
+        break
 
-        case Key.Tab:
-          return event.preventDefault()
+      case Key.ArrowDown:
+        return dispatch({ type: ActionTypes.GoToItem, focus: Focus.NextItem })
 
-        default:
-          if (event.key.length === 1) {
-            dispatch({ type: ActionTypes.Search, value: event.key })
-            searchDisposables.setTimeout(() => dispatch({ type: ActionTypes.ClearSearch }), 350)
-          }
-          break
-      }
+      case Key.ArrowUp:
+        return dispatch({ type: ActionTypes.GoToItem, focus: Focus.PreviousItem })
+
+      case Key.Home:
+      case Key.PageUp:
+        return dispatch({ type: ActionTypes.GoToItem, focus: Focus.FirstItem })
+
+      case Key.End:
+      case Key.PageDown:
+        return dispatch({ type: ActionTypes.GoToItem, focus: Focus.LastItem })
+
+      case Key.Escape:
+        dispatch({ type: ActionTypes.CloseMenu })
+        d.nextFrame(() => state.buttonRef.current?.focus())
+        break
+
+      case Key.Tab:
+        return event.preventDefault()
+
+      default:
+        if (event.key.length === 1) {
+          dispatch({ type: ActionTypes.Search, value: event.key })
+          searchDisposables.setTimeout(() => dispatch({ type: ActionTypes.ClearSearch }), 350)
+        }
+        break
     }
-
-    return (
-      <Transition show={state.menuState === MenuStates.Open}>
-        {ref => (
-          <div
-            {...props}
-            aria-activedescendant={
-              state.activeItemIndex === null ? undefined : state.items[state.activeItemIndex]?.id
-            }
-            aria-labelledby={state.buttonRef.current?.id}
-            id={id}
-            onKeyDown={handleKeyDown}
-            ref={divRef => {
-              ref.current = divRef
-              itemsRef(divRef)
-            }}
-            role="menu"
-            tabIndex={0}
-          />
-        )}
-      </Transition>
-    )
   }
-)
+
+  return (
+    <Transition
+      show={state.menuState === MenuStates.Open}
+      {...{ enter, enterFrom, enterTo, leave, leaveFrom, leaveTo }}
+    >
+      {ref => (
+        <div
+          {...otherProps}
+          aria-activedescendant={
+            state.activeItemIndex === null ? undefined : state.items[state.activeItemIndex]?.id
+          }
+          aria-labelledby={state.buttonRef.current?.id}
+          id={id}
+          onKeyDown={handleKeyDown}
+          ref={divRef => {
+            ref.current = divRef
+            itemsRef(divRef)
+          }}
+          role="menu"
+          tabIndex={0}
+        />
+      )}
+    </Transition>
+  )
+})
 
 // ---
 

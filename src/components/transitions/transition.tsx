@@ -27,7 +27,7 @@ enum TreeStates {
   Hidden = 'hidden',
 }
 
-type TransitionClasses = Partial<{
+export type TransitionClasses = Partial<{
   enter: string
   enterFrom: string
   enterTo: string
