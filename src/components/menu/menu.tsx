@@ -1,8 +1,9 @@
 // WAI-ARIA: https://www.w3.org/TR/wai-aria-practices-1.2/#menubutton
 import * as React from 'react'
 
-import { AsShortcut, PropsOf } from '../../types'
+import { AsRenderProp, AsShortcut } from '../../types'
 import { match } from '../../utils/match'
+import { forwardRefWithAs, render, isRenderProp } from '../../utils/renderable'
 import { Transition, TransitionClasses } from '../transitions/transition'
 import { useDisposables } from '../../hooks/use-disposables'
 import { useIsoMorphicEffect } from '../../hooks/use-iso-morphic-effect'
@@ -40,6 +41,7 @@ type StateDefinition = {
   menuState: MenuStates
   buttonRef: React.MutableRefObject<HTMLButtonElement | null>
   itemsRef: React.MutableRefObject<HTMLDivElement | null>
+  rootUsesRenderProp: boolean
   items: { id: string; dataRef: MenuItemDataRef }[]
   searchQuery: string
   activeItemIndex: number | null
@@ -212,6 +214,7 @@ function useMenuContext(component: string) {
 
 const defaultState: StateDefinition = {
   menuState: MenuStates.Closed,
+  rootUsesRenderProp: false,
   buttonRef: React.createRef(),
   itemsRef: React.createRef(),
   items: [],
@@ -223,9 +226,14 @@ function stateReducer(state: StateDefinition, action: Actions) {
   return match(action.type, reducers, state, action)
 }
 
-export function Menu(props: { children: React.ReactNode }) {
+export function Menu(props: {
+  children: ((props: { show: boolean }) => React.ReactNode) | React.ReactNode
+}) {
   const d = useDisposables()
-  const reducerBag = React.useReducer(stateReducer, defaultState)
+  const reducerBag = React.useReducer(
+    stateReducer,
+    Object.assign({}, defaultState, { rootUsesRenderProp: typeof props.children === 'function' })
+  )
   const [{ menuState, itemsRef, buttonRef }, dispatch] = reducerBag
 
   React.useEffect(() => {
@@ -243,6 +251,14 @@ export function Menu(props: { children: React.ReactNode }) {
     return () => window.removeEventListener('pointerdown', handler)
   }, [menuState, itemsRef, buttonRef, d, dispatch])
 
+  const propsBag = React.useMemo(() => ({ show: menuState === MenuStates.Open }), [menuState])
+
+  if (typeof props.children === 'function') {
+    return (
+      <MenuContext.Provider value={reducerBag}>{props.children(propsBag)}</MenuContext.Provider>
+    )
+  }
+
   return <MenuContext.Provider value={reducerBag}>{props.children}</MenuContext.Provider>
 }
 
@@ -257,18 +273,31 @@ type ButtonPropsWeControl =
   | 'aria-expanded'
   | 'onKeyDown'
   | 'onFocus'
+  | 'onBlur'
   | 'onPointerUp'
   | 'onPointerDown'
 
-const Button = React.forwardRef<HTMLButtonElement, Omit<PropsOf<'button'>, ButtonPropsWeControl>>(
-  function Button(props, ref) {
-    const [state, dispatch] = useMenuContext([Menu.name, Button.name].join('.'))
-    const buttonRef = useSyncRefs(state.buttonRef, ref)
+const DEFAULT_BUTTON_TAG = 'button'
 
-    const id = `tailwindui-menu-button-${useId()}`
-    const d = useDisposables()
+type ButtonRenderPropArg = { show: boolean; focused: boolean }
 
-    function handleKeyDown(event: React.KeyboardEvent<HTMLButtonElement>) {
+const Button = forwardRefWithAs(function Button<
+  TTag extends React.ElementType = typeof DEFAULT_BUTTON_TAG
+>(
+  props: AsShortcut<TTag, ButtonPropsWeControl> | AsRenderProp<ButtonRenderPropArg>,
+  ref: React.Ref<HTMLButtonElement>
+) {
+  const [state, dispatch] = useMenuContext([Menu.name, Button.name].join('.'))
+  const buttonRef = useSyncRefs(state.buttonRef, ref)
+  const [focused, setFocused] = React.useState(false)
+
+  const id = `tailwindui-menu-button-${useId()}`
+  const d = useDisposables()
+
+  const usingRenderProp = isRenderProp(props)
+
+  const handleKeyDown = React.useCallback(
+    (event: React.KeyboardEvent<HTMLButtonElement>) => {
       switch (event.key) {
         // Ref: https://www.w3.org/TR/wai-aria-practices-1.2/#keyboard-interaction-13
 
@@ -292,40 +321,51 @@ const Button = React.forwardRef<HTMLButtonElement, Omit<PropsOf<'button'>, Butto
           })
           break
       }
-    }
+    },
+    [dispatch, state, d]
+  )
 
-    function handlePointerDown(event: React.PointerEvent<HTMLButtonElement>) {
-      // We have a `pointerdown` event listener in the menu for the 'outside click', so we just want
-      // to prevent going there if we happen to click this button.
-      event.preventDefault()
-    }
+  const handlePointerDown = React.useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
+    // We have a `pointerdown` event listener in the menu for the 'outside click', so we just want
+    // to prevent going there if we happen to click this button.
+    event.preventDefault()
+  }, [])
 
-    function handlePointerUp() {
-      dispatch({ type: ActionTypes.ToggleMenu })
-      d.nextFrame(() => state.itemsRef.current?.focus())
-    }
+  const handlePointerUp = React.useCallback(() => {
+    dispatch({ type: ActionTypes.ToggleMenu })
+    d.nextFrame(() => state.itemsRef.current?.focus())
+  }, [dispatch, d, state])
 
-    function handleFocus() {
-      if (state.menuState === MenuStates.Open) state.itemsRef.current?.focus()
-    }
+  const handleFocus = React.useCallback(() => {
+    if (state.menuState === MenuStates.Open) state.itemsRef.current?.focus()
+    if (usingRenderProp) setFocused(true)
+  }, [state, usingRenderProp, setFocused])
 
-    return (
-      <button
-        {...props}
-        ref={buttonRef}
-        id={id}
-        type="button"
-        aria-haspopup={true}
-        aria-controls={state.itemsRef.current?.id}
-        aria-expanded={state.menuState === MenuStates.Open ? true : undefined}
-        onKeyDown={handleKeyDown}
-        onFocus={handleFocus}
-        onPointerUp={handlePointerUp}
-        onPointerDown={handlePointerDown}
-      />
-    )
+  const handleBlur = React.useCallback(() => {
+    if (usingRenderProp) setFocused(false)
+  }, [usingRenderProp, setFocused])
+
+  const propsBag = React.useMemo(() => ({ show: state.menuState === MenuStates.Open, focused }), [
+    state,
+    focused,
+  ])
+  const passthroughProps = props
+  const propsWeControl = {
+    ref: buttonRef,
+    id,
+    type: 'button',
+    'aria-haspopup': true,
+    'aria-controls': state.itemsRef.current?.id,
+    'aria-expanded': state.menuState === MenuStates.Open ? true : undefined,
+    onKeyDown: handleKeyDown,
+    onFocus: handleFocus,
+    onBlur: handleBlur,
+    onPointerUp: handlePointerUp,
+    onPointerDown: handlePointerDown,
   }
-)
+
+  return render({ ...passthroughProps, ...propsWeControl }, propsBag, DEFAULT_BUTTON_TAG)
+})
 
 // ---
 
@@ -338,12 +378,18 @@ type ItemsPropsWeControl =
   | 'role'
   | 'tabIndex'
 
-const Items = React.forwardRef<
-  HTMLDivElement,
-  Omit<PropsOf<'div'>, ItemsPropsWeControl> & TransitionClasses
->(function Items(props, ref) {
-  const { enter, enterFrom, enterTo, leave, leaveFrom, leaveTo, ...otherProps } = props
+const DEFAULT_ITEMS_TAG = 'div'
 
+type ItemsRenderPropArg = { show: boolean }
+
+const Items = forwardRefWithAs(function Items<
+  TTag extends React.ElementType = typeof DEFAULT_ITEMS_TAG
+>(
+  props: (AsShortcut<TTag, ItemsPropsWeControl> | AsRenderProp<ItemsRenderPropArg>) &
+    TransitionClasses,
+  ref: React.Ref<HTMLDivElement>
+) {
+  const { enter, enterFrom, enterTo, leave, leaveFrom, leaveTo, ...passthroughProps } = props
   const [state, dispatch] = useMenuContext([Menu.name, Items.name].join('.'))
   const itemsRef = useSyncRefs(state.itemsRef, ref)
 
@@ -351,50 +397,72 @@ const Items = React.forwardRef<
   const d = useDisposables()
   const searchDisposables = useDisposables()
 
-  function handleKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
-    searchDisposables.dispose()
+  const handleKeyDown = React.useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
+      searchDisposables.dispose()
 
-    switch (event.key) {
-      // Ref: https://www.w3.org/TR/wai-aria-practices-1.2/#keyboard-interaction-12
+      switch (event.key) {
+        // Ref: https://www.w3.org/TR/wai-aria-practices-1.2/#keyboard-interaction-12
 
-      case Key.Enter:
-        dispatch({ type: ActionTypes.CloseMenu })
-        if (state.activeItemIndex !== null) {
-          const { id } = state.items[state.activeItemIndex]
-          document.getElementById(id)?.click()
+        case Key.Enter:
+          dispatch({ type: ActionTypes.CloseMenu })
+          if (state.activeItemIndex !== null) {
+            const { id } = state.items[state.activeItemIndex]
+            document.getElementById(id)?.click()
+            d.nextFrame(() => state.buttonRef.current?.focus())
+          }
+          break
+
+        case Key.ArrowDown:
+          return dispatch({ type: ActionTypes.GoToItem, focus: Focus.NextItem })
+
+        case Key.ArrowUp:
+          return dispatch({ type: ActionTypes.GoToItem, focus: Focus.PreviousItem })
+
+        case Key.Home:
+        case Key.PageUp:
+          return dispatch({ type: ActionTypes.GoToItem, focus: Focus.FirstItem })
+
+        case Key.End:
+        case Key.PageDown:
+          return dispatch({ type: ActionTypes.GoToItem, focus: Focus.LastItem })
+
+        case Key.Escape:
+          dispatch({ type: ActionTypes.CloseMenu })
           d.nextFrame(() => state.buttonRef.current?.focus())
-        }
-        break
+          break
 
-      case Key.ArrowDown:
-        return dispatch({ type: ActionTypes.GoToItem, focus: Focus.NextItem })
+        case Key.Tab:
+          return event.preventDefault()
 
-      case Key.ArrowUp:
-        return dispatch({ type: ActionTypes.GoToItem, focus: Focus.PreviousItem })
+        default:
+          if (event.key.length === 1) {
+            dispatch({ type: ActionTypes.Search, value: event.key })
+            searchDisposables.setTimeout(() => dispatch({ type: ActionTypes.ClearSearch }), 350)
+          }
+          break
+      }
+    },
+    [d, dispatch, searchDisposables, state]
+  )
 
-      case Key.Home:
-      case Key.PageUp:
-        return dispatch({ type: ActionTypes.GoToItem, focus: Focus.FirstItem })
+  const propsBag = React.useMemo(() => ({ show: state.menuState === MenuStates.Open }), [state])
+  const propsWeControl = {
+    'aria-activedescendant':
+      state.activeItemIndex === null ? undefined : state.items[state.activeItemIndex]?.id,
+    'aria-labelledby': state.buttonRef.current?.id,
+    id,
+    onKeyDown: handleKeyDown,
+    role: 'menu',
+    tabIndex: 0,
+  }
 
-      case Key.End:
-      case Key.PageDown:
-        return dispatch({ type: ActionTypes.GoToItem, focus: Focus.LastItem })
-
-      case Key.Escape:
-        dispatch({ type: ActionTypes.CloseMenu })
-        d.nextFrame(() => state.buttonRef.current?.focus())
-        break
-
-      case Key.Tab:
-        return event.preventDefault()
-
-      default:
-        if (event.key.length === 1) {
-          dispatch({ type: ActionTypes.Search, value: event.key })
-          searchDisposables.setTimeout(() => dispatch({ type: ActionTypes.ClearSearch }), 350)
-        }
-        break
-    }
+  if (state.rootUsesRenderProp) {
+    return render(
+      { ...passthroughProps, ...propsWeControl, ...{ ref: itemsRef } },
+      propsBag,
+      DEFAULT_ITEMS_TAG
+    )
   }
 
   return (
@@ -402,30 +470,27 @@ const Items = React.forwardRef<
       show={state.menuState === MenuStates.Open}
       {...{ enter, enterFrom, enterTo, leave, leaveFrom, leaveTo }}
     >
-      {ref => (
-        <div
-          {...otherProps}
-          aria-activedescendant={
-            state.activeItemIndex === null ? undefined : state.items[state.activeItemIndex]?.id
-          }
-          aria-labelledby={state.buttonRef.current?.id}
-          id={id}
-          onKeyDown={handleKeyDown}
-          ref={divRef => {
-            ref.current = divRef
-            itemsRef(divRef)
-          }}
-          role="menu"
-          tabIndex={0}
-        />
-      )}
+      {ref =>
+        render(
+          {
+            ...passthroughProps,
+            ...propsWeControl,
+            ...{
+              ref(elementRef: HTMLDivElement) {
+                ref.current = elementRef
+                itemsRef(elementRef)
+              },
+            },
+          },
+          propsBag,
+          DEFAULT_ITEMS_TAG
+        )
+      }
     </Transition>
   )
 })
 
 // ---
-
-const DEFAULT_ITEM_TAG = 'a'
 
 type MenuItemPropsWeControl =
   | 'id'
@@ -437,16 +502,23 @@ type MenuItemPropsWeControl =
   | 'onPointerUp'
   | 'onFocus'
 
+const DEFAULT_ITEM_TAG = 'a'
+
+type ItemRenderPropArg = { active: boolean; disabled: boolean }
+
 function Item<TTag extends React.ElementType = typeof DEFAULT_ITEM_TAG>(
-  props: Omit<AsShortcut<TTag>, MenuItemPropsWeControl | 'className'> & {
+  props: (
+    | AsShortcut<TTag, MenuItemPropsWeControl | 'className'>
+    | AsRenderProp<ItemRenderPropArg>
+  ) & {
     disabled?: boolean
-    as?: TTag
+    onClick?: (event: { preventDefault: Function }) => void
 
     // Special treatment, can either be a string or a function that resolves to a string
-    className?: ((bag: { active: boolean; disabled: boolean }) => string) | string
+    className?: ((bag: ItemRenderPropArg) => string) | string
   }
 ) {
-  const { as: Component = DEFAULT_ITEM_TAG, disabled = false, className, onClick, ...rest } = props
+  const { disabled = false, className, onClick, ...passthroughProps } = props
   const [state, dispatch] = useMenuContext([Menu.name, Item.name].join('.'))
   const d = useDisposables()
   const id = `tailwindui-menu-item-${useId()}`
@@ -508,23 +580,25 @@ function Item<TTag extends React.ElementType = typeof DEFAULT_ITEM_TAG>(
   )
 
   const propsBag = React.useMemo(() => ({ active, disabled }), [active, disabled])
+  const propsWeControl = {
+    id,
+    role: 'menuitem',
+    tabIndex: -1,
+    className: resolvePropValue(className, propsBag),
+    disabled: disabled,
+    'aria-disabled': disabled,
+    onClick: handleClick,
+    onFocus: handleFocus,
+    onMouseMove: handleMouseMove,
+    onPointerEnter: handlePointerEnter,
+    onPointerLeave: handlePointerLeave,
+    onPointerUp: handlePointerUp,
+  }
 
-  return (
-    <Component
-      {...rest}
-      id={id}
-      role="menuitem"
-      tabIndex={-1}
-      className={resolvePropValue(className, propsBag)}
-      disabled={disabled}
-      aria-disabled={disabled}
-      onClick={handleClick}
-      onFocus={handleFocus}
-      onMouseMove={handleMouseMove}
-      onPointerEnter={handlePointerEnter}
-      onPointerLeave={handlePointerLeave}
-      onPointerUp={handlePointerUp}
-    />
+  return render<TTag, ItemRenderPropArg>(
+    { ...passthroughProps, ...propsWeControl },
+    propsBag,
+    DEFAULT_ITEM_TAG
   )
 }
 

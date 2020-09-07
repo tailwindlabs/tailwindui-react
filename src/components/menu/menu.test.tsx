@@ -96,7 +96,7 @@ describe('safe guards', () => {
 })
 
 it(
-  'should be possilbe to render a menu using a render prop',
+  'should be possilbe to render a Menu using a render prop',
   suppressConsoleLogs(async () => {
     render(
       <Menu>
@@ -128,6 +128,70 @@ it(
       attributes: { id: 'tailwindui-menu-button-1' },
     })
     assertMenu(getMenu(), { state: MenuState.Open })
+  })
+)
+
+it(
+  'should be possible to render a Menu.Button using a render prop',
+  suppressConsoleLogs(async () => {
+    render(
+      <Menu>
+        <Menu.Button>{({ show }) => <button data-show={show}>Trigger</button>}</Menu.Button>
+        <Menu.Items>
+          <Menu.Item>Item A</Menu.Item>
+          <Menu.Item>Item B</Menu.Item>
+          <Menu.Item>Item C</Menu.Item>
+        </Menu.Items>
+      </Menu>
+    )
+
+    assertMenuButton(getMenuButton(), {
+      state: MenuButtonState.Closed,
+      attributes: { id: 'tailwindui-menu-button-1', 'data-show': 'false' },
+    })
+    assertMenu(getMenu(), { state: MenuState.Closed })
+
+    await click(getMenuButton())
+
+    assertMenuButton(getMenuButton(), {
+      state: MenuButtonState.Open,
+      attributes: { id: 'tailwindui-menu-button-1', 'data-show': 'true' },
+    })
+    assertMenu(getMenu(), { state: MenuState.Open })
+  })
+)
+
+it(
+  'should be possible to render Menu.Items using a render prop',
+  suppressConsoleLogs(async () => {
+    render(
+      <Menu>
+        <Menu.Button>Trigger</Menu.Button>
+        <Menu.Items>
+          {({ show }) => (
+            <div data-show={show}>
+              <Menu.Item>Item A</Menu.Item>
+              <Menu.Item>Item B</Menu.Item>
+              <Menu.Item>Item C</Menu.Item>
+            </div>
+          )}
+        </Menu.Items>
+      </Menu>
+    )
+
+    assertMenuButton(getMenuButton(), {
+      state: MenuButtonState.Closed,
+      attributes: { id: 'tailwindui-menu-button-1' },
+    })
+    assertMenu(getMenu(), { state: MenuState.Closed })
+
+    await click(getMenuButton())
+
+    assertMenuButton(getMenuButton(), {
+      state: MenuButtonState.Open,
+      attributes: { id: 'tailwindui-menu-button-1' },
+    })
+    assertMenu(getMenu(), { state: MenuState.Open, attributes: { 'data-show': 'true' } })
   })
 )
 
