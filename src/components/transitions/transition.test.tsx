@@ -14,6 +14,11 @@ it('should render without crashing', () => {
   )
 })
 
+it('should be possible to render a Transition without children', () => {
+  render(<Transition show={true} className="transition" />)
+  expect(document.getElementsByClassName('transition')).not.toBeNull()
+})
+
 it(
   'should yell at us when we forget the required show prop',
   suppressConsoleLogs(() => {
@@ -156,6 +161,15 @@ describe('Setup API', () => {
         )
       })
     )
+
+    it('should be possible to render a Transition.Child without children', () => {
+      render(
+        <Transition show={true}>
+          <Transition.Child className="transition" />
+        </Transition>
+      )
+      expect(document.getElementsByClassName('transition')).not.toBeNull()
+    })
 
     it('should be possible to nest transition components', () => {
       const { container } = render(

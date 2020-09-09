@@ -40,7 +40,7 @@ type HTMlTags = keyof JSX.IntrinsicElements
 type HTMLTagProps<TTag extends HTMlTags> = JSX.IntrinsicElements[TTag]
 
 type AsShortcut<TTag extends HTMlTags> = {
-  children: React.ReactNode
+  children?: React.ReactNode
   as?: TTag
 } & Omit<HTMLTagProps<TTag>, 'ref'>
 
