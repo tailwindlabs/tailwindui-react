@@ -44,6 +44,13 @@ function getMenuItems(): HTMLElement[] {
   return Array.from(document.querySelectorAll('[role="menuitem"]'))
 }
 
+beforeAll(() => {
+  jest.spyOn(window, 'requestAnimationFrame').mockImplementation(setImmediate as any)
+  jest.spyOn(window, 'cancelAnimationFrame').mockImplementation(clearImmediate as any)
+})
+
+afterAll(() => jest.restoreAllMocks())
+
 describe('safe guards', () => {
   it(
     'should error when we are using a <Menu.Button /> without a parent <Menu />',
