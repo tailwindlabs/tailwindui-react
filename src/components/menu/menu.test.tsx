@@ -51,30 +51,16 @@ beforeAll(() => {
 
 afterAll(() => jest.restoreAllMocks())
 
-describe('safe guards', () => {
-  it(
-    'should error when we are using a <Menu.Button /> without a parent <Menu />',
-    suppressConsoleLogs(() => {
-      expect(() => render(<Menu.Button>...</Menu.Button>)).toThrowErrorMatchingInlineSnapshot(
-        `"<Menu.Button /> is missing a parent <Menu /> component."`
-      )
-    })
-  )
-
-  it(
-    'should error when we are using a <Menu.Items /> without a parent <Menu />',
-    suppressConsoleLogs(() => {
-      expect(() => render(<Menu.Items>...</Menu.Items>)).toThrowErrorMatchingInlineSnapshot(
-        `"<Menu.Items /> is missing a parent <Menu /> component."`
-      )
-    })
-  )
-
-  it(
-    'should error when we are using a <Menu.Item /> without a parent <Menu />',
-    suppressConsoleLogs(() => {
-      expect(() => render(<Menu.Item>...</Menu.Item>)).toThrowErrorMatchingInlineSnapshot(
-        `"<Menu.Item /> is missing a parent <Menu /> component."`
+describe('Safe guards', () => {
+  it.each([
+    ['Menu.Button', Menu.Button],
+    ['Menu.Items', Menu.Items],
+    ['Menu.Item', Menu.Item],
+  ])(
+    'should error when we are using a <%s /> without a parent <Menu />',
+    suppressConsoleLogs((name, Component) => {
+      expect(() => render(React.createElement(Component))).toThrowError(
+        `<${name} /> is missing a parent <Menu /> component.`
       )
     })
   )
@@ -86,9 +72,9 @@ describe('safe guards', () => {
         <Menu>
           <Menu.Button>Trigger</Menu.Button>
           <Menu.Items>
-            <Menu.Item>Item A</Menu.Item>
-            <Menu.Item>Item B</Menu.Item>
-            <Menu.Item>Item C</Menu.Item>
+            <Menu.Item as="a">Item A</Menu.Item>
+            <Menu.Item as="a">Item B</Menu.Item>
+            <Menu.Item as="a">Item C</Menu.Item>
           </Menu.Items>
         </Menu>
       )
@@ -102,107 +88,133 @@ describe('safe guards', () => {
   )
 })
 
-it(
-  'should be possilbe to render a Menu using a render prop',
-  suppressConsoleLogs(async () => {
-    render(
-      <Menu>
-        {({ show }) => (
-          <>
-            <Menu.Button>Trigger</Menu.Button>
-            {show && (
-              <Menu.Items>
-                <Menu.Item>Item A</Menu.Item>
-                <Menu.Item>Item B</Menu.Item>
-                <Menu.Item>Item C</Menu.Item>
-              </Menu.Items>
+describe('Rendering', () => {
+  describe('Menu', () => {
+    it(
+      'should be possilbe to render a Menu using a render prop',
+      suppressConsoleLogs(async () => {
+        render(
+          <Menu>
+            {({ open }) => (
+              <>
+                <Menu.Button>Trigger</Menu.Button>
+                {open && (
+                  <Menu.Items>
+                    <Menu.Item as="a">Item A</Menu.Item>
+                    <Menu.Item as="a">Item B</Menu.Item>
+                    <Menu.Item as="a">Item C</Menu.Item>
+                  </Menu.Items>
+                )}
+              </>
             )}
-          </>
-        )}
-      </Menu>
+          </Menu>
+        )
+
+        assertMenuButton(getMenuButton(), {
+          state: MenuButtonState.Closed,
+          attributes: { id: 'tailwindui-menu-button-1' },
+        })
+        assertMenu(getMenu(), { state: MenuState.Closed })
+
+        await click(getMenuButton())
+
+        assertMenuButton(getMenuButton(), {
+          state: MenuButtonState.Open,
+          attributes: { id: 'tailwindui-menu-button-1' },
+        })
+        assertMenu(getMenu(), { state: MenuState.Open })
+      })
+    )
+  })
+
+  describe('MenuButton', () => {
+    it(
+      'should be possible to render a Menu.Button using a render prop',
+      suppressConsoleLogs(async () => {
+        render(
+          <Menu>
+            <Menu.Button>{({ open }) => <button data-open={open}>Trigger</button>}</Menu.Button>
+            <Menu.Items>
+              <Menu.Item as="a">Item A</Menu.Item>
+              <Menu.Item as="a">Item B</Menu.Item>
+              <Menu.Item as="a">Item C</Menu.Item>
+            </Menu.Items>
+          </Menu>
+        )
+
+        assertMenuButton(getMenuButton(), {
+          state: MenuButtonState.Closed,
+          attributes: { id: 'tailwindui-menu-button-1', 'data-open': 'false' },
+        })
+        assertMenu(getMenu(), { state: MenuState.Closed })
+
+        await click(getMenuButton())
+
+        assertMenuButton(getMenuButton(), {
+          state: MenuButtonState.Open,
+          attributes: { id: 'tailwindui-menu-button-1', 'data-open': 'true' },
+        })
+        assertMenu(getMenu(), { state: MenuState.Open })
+      })
+    )
+  })
+
+  describe('MenuItems', () => {
+    it(
+      'should be possible to render Menu.Items using a render prop',
+      suppressConsoleLogs(async () => {
+        render(
+          <Menu>
+            <Menu.Button>Trigger</Menu.Button>
+            <Menu.Items>
+              {({ open }) => (
+                <div data-open={open}>
+                  <Menu.Item as="a">Item A</Menu.Item>
+                  <Menu.Item as="a">Item B</Menu.Item>
+                  <Menu.Item as="a">Item C</Menu.Item>
+                </div>
+              )}
+            </Menu.Items>
+          </Menu>
+        )
+
+        assertMenuButton(getMenuButton(), {
+          state: MenuButtonState.Closed,
+          attributes: { id: 'tailwindui-menu-button-1' },
+        })
+        assertMenu(getMenu(), { state: MenuState.Closed })
+
+        await click(getMenuButton())
+
+        assertMenuButton(getMenuButton(), {
+          state: MenuButtonState.Open,
+          attributes: { id: 'tailwindui-menu-button-1' },
+        })
+        assertMenu(getMenu(), { state: MenuState.Open, attributes: { 'data-open': 'true' } })
+      })
     )
 
-    assertMenuButton(getMenuButton(), {
-      state: MenuButtonState.Closed,
-      attributes: { id: 'tailwindui-menu-button-1' },
-    })
-    assertMenu(getMenu(), { state: MenuState.Closed })
+    it('should be possible to always render the MenuItems if we provide it a `static` prop', () => {
+      render(
+        <Menu>
+          <Menu.Button>Trigger</Menu.Button>
+          <Menu.Items static>
+            <Menu.Item as="a">Item A</Menu.Item>
+            <Menu.Item as="a">Item B</Menu.Item>
+            <Menu.Item as="a">Item C</Menu.Item>
+          </Menu.Items>
+        </Menu>
+      )
 
-    await click(getMenuButton())
-
-    assertMenuButton(getMenuButton(), {
-      state: MenuButtonState.Open,
-      attributes: { id: 'tailwindui-menu-button-1' },
+      // Let's verify that the Menu is already there
+      expect(getMenu()).not.toBe(null)
     })
-    assertMenu(getMenu(), { state: MenuState.Open })
   })
-)
 
-it(
-  'should be possible to render a Menu.Button using a render prop',
-  suppressConsoleLogs(async () => {
-    render(
-      <Menu>
-        <Menu.Button>{({ show }) => <button data-show={show}>Trigger</button>}</Menu.Button>
-        <Menu.Items>
-          <Menu.Item>Item A</Menu.Item>
-          <Menu.Item>Item B</Menu.Item>
-          <Menu.Item>Item C</Menu.Item>
-        </Menu.Items>
-      </Menu>
-    )
+  describe('MenuItem', () => {})
+})
 
-    assertMenuButton(getMenuButton(), {
-      state: MenuButtonState.Closed,
-      attributes: { id: 'tailwindui-menu-button-1', 'data-show': 'false' },
-    })
-    assertMenu(getMenu(), { state: MenuState.Closed })
-
-    await click(getMenuButton())
-
-    assertMenuButton(getMenuButton(), {
-      state: MenuButtonState.Open,
-      attributes: { id: 'tailwindui-menu-button-1', 'data-show': 'true' },
-    })
-    assertMenu(getMenu(), { state: MenuState.Open })
-  })
-)
-
-it(
-  'should be possible to render Menu.Items using a render prop',
-  suppressConsoleLogs(async () => {
-    render(
-      <Menu>
-        <Menu.Button>Trigger</Menu.Button>
-        <Menu.Items>
-          {({ show }) => (
-            <div data-show={show}>
-              <Menu.Item>Item A</Menu.Item>
-              <Menu.Item>Item B</Menu.Item>
-              <Menu.Item>Item C</Menu.Item>
-            </div>
-          )}
-        </Menu.Items>
-      </Menu>
-    )
-
-    assertMenuButton(getMenuButton(), {
-      state: MenuButtonState.Closed,
-      attributes: { id: 'tailwindui-menu-button-1' },
-    })
-    assertMenu(getMenu(), { state: MenuState.Closed })
-
-    await click(getMenuButton())
-
-    assertMenuButton(getMenuButton(), {
-      state: MenuButtonState.Open,
-      attributes: { id: 'tailwindui-menu-button-1' },
-    })
-    assertMenu(getMenu(), { state: MenuState.Open, attributes: { 'data-show': 'true' } })
-  })
-)
-
-describe('rendering composition', () => {
+describe('Rendering composition', () => {
   it(
     'should be possible to conditionally render classNames (aka className can be a function?!)',
     suppressConsoleLogs(async () => {
@@ -210,11 +222,15 @@ describe('rendering composition', () => {
         <Menu>
           <Menu.Button>Trigger</Menu.Button>
           <Menu.Items>
-            <Menu.Item className={bag => JSON.stringify(bag)}>Item A</Menu.Item>
-            <Menu.Item disabled className={bag => JSON.stringify(bag)}>
+            <Menu.Item as="a" className={bag => JSON.stringify(bag)}>
+              Item A
+            </Menu.Item>
+            <Menu.Item as="a" disabled className={bag => JSON.stringify(bag)}>
               Item B
             </Menu.Item>
-            <Menu.Item className="no-special-treatment">Item C</Menu.Item>
+            <Menu.Item as="a" className="no-special-treatment">
+              Item C
+            </Menu.Item>
           </Menu.Items>
         </Menu>
       )
@@ -292,7 +308,7 @@ describe('rendering composition', () => {
   )
 })
 
-describe('keyboard interactions', () => {
+describe('Keyboard interactions', () => {
   describe('`Enter` key', () => {
     it(
       'should be possible to open the menu with Enter',
@@ -301,9 +317,9 @@ describe('keyboard interactions', () => {
           <Menu>
             <Menu.Button>Trigger</Menu.Button>
             <Menu.Items>
-              <Menu.Item>Item A</Menu.Item>
-              <Menu.Item>Item B</Menu.Item>
-              <Menu.Item>Item C</Menu.Item>
+              <Menu.Item as="a">Item A</Menu.Item>
+              <Menu.Item as="a">Item B</Menu.Item>
+              <Menu.Item as="a">Item C</Menu.Item>
             </Menu.Items>
           </Menu>
         )
@@ -368,9 +384,11 @@ describe('keyboard interactions', () => {
           <Menu>
             <Menu.Button>Trigger</Menu.Button>
             <Menu.Items>
-              <Menu.Item disabled>Item A</Menu.Item>
-              <Menu.Item>Item B</Menu.Item>
-              <Menu.Item>Item C</Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item A
+              </Menu.Item>
+              <Menu.Item as="a">Item B</Menu.Item>
+              <Menu.Item as="a">Item C</Menu.Item>
             </Menu.Items>
           </Menu>
         )
@@ -401,9 +419,13 @@ describe('keyboard interactions', () => {
           <Menu>
             <Menu.Button>Trigger</Menu.Button>
             <Menu.Items>
-              <Menu.Item disabled>Item A</Menu.Item>
-              <Menu.Item disabled>Item B</Menu.Item>
-              <Menu.Item>Item C</Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item A
+              </Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item B
+              </Menu.Item>
+              <Menu.Item as="a">Item C</Menu.Item>
             </Menu.Items>
           </Menu>
         )
@@ -434,9 +456,15 @@ describe('keyboard interactions', () => {
           <Menu>
             <Menu.Button>Trigger</Menu.Button>
             <Menu.Items>
-              <Menu.Item disabled>Item A</Menu.Item>
-              <Menu.Item disabled>Item B</Menu.Item>
-              <Menu.Item disabled>Item C</Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item A
+              </Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item B
+              </Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item C
+              </Menu.Item>
             </Menu.Items>
           </Menu>
         )
@@ -464,9 +492,9 @@ describe('keyboard interactions', () => {
           <Menu>
             <Menu.Button>Trigger</Menu.Button>
             <Menu.Items>
-              <Menu.Item>Item A</Menu.Item>
-              <Menu.Item>Item B</Menu.Item>
-              <Menu.Item>Item C</Menu.Item>
+              <Menu.Item as="a">Item A</Menu.Item>
+              <Menu.Item as="a">Item B</Menu.Item>
+              <Menu.Item as="a">Item C</Menu.Item>
             </Menu.Items>
           </Menu>
         )
@@ -499,9 +527,9 @@ describe('keyboard interactions', () => {
           <Menu>
             <Menu.Button>Trigger</Menu.Button>
             <Menu.Items>
-              <Menu.Item>Item A</Menu.Item>
-              <Menu.Item>Item B</Menu.Item>
-              <Menu.Item>Item C</Menu.Item>
+              <Menu.Item as="a">Item A</Menu.Item>
+              <Menu.Item as="a">Item B</Menu.Item>
+              <Menu.Item as="a">Item C</Menu.Item>
             </Menu.Items>
           </Menu>
         )
@@ -541,11 +569,11 @@ describe('keyboard interactions', () => {
         <Menu>
           <Menu.Button>Trigger</Menu.Button>
           <Menu.Items>
-            <Menu.Item>Item A</Menu.Item>
+            <Menu.Item as="a">Item A</Menu.Item>
             <Menu.Item as="button" onClick={clickHandler}>
               Item B
             </Menu.Item>
-            <Menu.Item>Item C</Menu.Item>
+            <Menu.Item as="a">Item C</Menu.Item>
           </Menu.Items>
         </Menu>
       )
@@ -586,9 +614,9 @@ describe('keyboard interactions', () => {
           <Menu>
             <Menu.Button>Trigger</Menu.Button>
             <Menu.Items>
-              <Menu.Item>Item A</Menu.Item>
-              <Menu.Item>Item B</Menu.Item>
-              <Menu.Item>Item C</Menu.Item>
+              <Menu.Item as="a">Item A</Menu.Item>
+              <Menu.Item as="a">Item B</Menu.Item>
+              <Menu.Item as="a">Item C</Menu.Item>
             </Menu.Items>
           </Menu>
         )
@@ -651,9 +679,11 @@ describe('keyboard interactions', () => {
           <Menu>
             <Menu.Button>Trigger</Menu.Button>
             <Menu.Items>
-              <Menu.Item disabled>Item A</Menu.Item>
-              <Menu.Item>Item B</Menu.Item>
-              <Menu.Item>Item C</Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item A
+              </Menu.Item>
+              <Menu.Item as="a">Item B</Menu.Item>
+              <Menu.Item as="a">Item C</Menu.Item>
             </Menu.Items>
           </Menu>
         )
@@ -684,9 +714,13 @@ describe('keyboard interactions', () => {
           <Menu>
             <Menu.Button>Trigger</Menu.Button>
             <Menu.Items>
-              <Menu.Item disabled>Item A</Menu.Item>
-              <Menu.Item disabled>Item B</Menu.Item>
-              <Menu.Item>Item C</Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item A
+              </Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item B
+              </Menu.Item>
+              <Menu.Item as="a">Item C</Menu.Item>
             </Menu.Items>
           </Menu>
         )
@@ -717,9 +751,15 @@ describe('keyboard interactions', () => {
           <Menu>
             <Menu.Button>Trigger</Menu.Button>
             <Menu.Items>
-              <Menu.Item disabled>Item A</Menu.Item>
-              <Menu.Item disabled>Item B</Menu.Item>
-              <Menu.Item disabled>Item C</Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item A
+              </Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item B
+              </Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item C
+              </Menu.Item>
             </Menu.Items>
           </Menu>
         )
@@ -749,9 +789,9 @@ describe('keyboard interactions', () => {
           <Menu>
             <Menu.Button>Trigger</Menu.Button>
             <Menu.Items>
-              <Menu.Item>Item A</Menu.Item>
-              <Menu.Item>Item B</Menu.Item>
-              <Menu.Item>Item C</Menu.Item>
+              <Menu.Item as="a">Item A</Menu.Item>
+              <Menu.Item as="a">Item B</Menu.Item>
+              <Menu.Item as="a">Item C</Menu.Item>
             </Menu.Items>
           </Menu>
         )
@@ -788,9 +828,9 @@ describe('keyboard interactions', () => {
           <Menu>
             <Menu.Button>Trigger</Menu.Button>
             <Menu.Items>
-              <Menu.Item>Item A</Menu.Item>
-              <Menu.Item>Item B</Menu.Item>
-              <Menu.Item>Item C</Menu.Item>
+              <Menu.Item as="a">Item A</Menu.Item>
+              <Menu.Item as="a">Item B</Menu.Item>
+              <Menu.Item as="a">Item C</Menu.Item>
             </Menu.Items>
           </Menu>
         )
@@ -837,9 +877,9 @@ describe('keyboard interactions', () => {
           <Menu>
             <Menu.Button>Trigger</Menu.Button>
             <Menu.Items>
-              <Menu.Item>Item A</Menu.Item>
-              <Menu.Item>Item B</Menu.Item>
-              <Menu.Item>Item C</Menu.Item>
+              <Menu.Item as="a">Item A</Menu.Item>
+              <Menu.Item as="a">Item B</Menu.Item>
+              <Menu.Item as="a">Item C</Menu.Item>
             </Menu.Items>
           </Menu>
         )
@@ -888,9 +928,9 @@ describe('keyboard interactions', () => {
           <Menu>
             <Menu.Button>Trigger</Menu.Button>
             <Menu.Items>
-              <Menu.Item>Item A</Menu.Item>
-              <Menu.Item>Item B</Menu.Item>
-              <Menu.Item>Item C</Menu.Item>
+              <Menu.Item as="a">Item A</Menu.Item>
+              <Menu.Item as="a">Item B</Menu.Item>
+              <Menu.Item as="a">Item C</Menu.Item>
             </Menu.Items>
           </Menu>
         )
@@ -955,9 +995,9 @@ describe('keyboard interactions', () => {
           <Menu>
             <Menu.Button>Trigger</Menu.Button>
             <Menu.Items>
-              <Menu.Item>Item A</Menu.Item>
-              <Menu.Item>Item B</Menu.Item>
-              <Menu.Item>Item C</Menu.Item>
+              <Menu.Item as="a">Item A</Menu.Item>
+              <Menu.Item as="a">Item B</Menu.Item>
+              <Menu.Item as="a">Item C</Menu.Item>
             </Menu.Items>
           </Menu>
         )
@@ -1001,9 +1041,11 @@ describe('keyboard interactions', () => {
           <Menu>
             <Menu.Button>Trigger</Menu.Button>
             <Menu.Items>
-              <Menu.Item disabled>Item A</Menu.Item>
-              <Menu.Item>Item B</Menu.Item>
-              <Menu.Item>Item C</Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item A
+              </Menu.Item>
+              <Menu.Item as="a">Item B</Menu.Item>
+              <Menu.Item as="a">Item C</Menu.Item>
             </Menu.Items>
           </Menu>
         )
@@ -1039,9 +1081,13 @@ describe('keyboard interactions', () => {
           <Menu>
             <Menu.Button>Trigger</Menu.Button>
             <Menu.Items>
-              <Menu.Item disabled>Item A</Menu.Item>
-              <Menu.Item disabled>Item B</Menu.Item>
-              <Menu.Item>Item C</Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item A
+              </Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item B
+              </Menu.Item>
+              <Menu.Item as="a">Item C</Menu.Item>
             </Menu.Items>
           </Menu>
         )
@@ -1075,9 +1121,9 @@ describe('keyboard interactions', () => {
           <Menu>
             <Menu.Button>Trigger</Menu.Button>
             <Menu.Items>
-              <Menu.Item>Item A</Menu.Item>
-              <Menu.Item>Item B</Menu.Item>
-              <Menu.Item>Item C</Menu.Item>
+              <Menu.Item as="a">Item A</Menu.Item>
+              <Menu.Item as="a">Item B</Menu.Item>
+              <Menu.Item as="a">Item C</Menu.Item>
             </Menu.Items>
           </Menu>
         )
@@ -1142,9 +1188,13 @@ describe('keyboard interactions', () => {
           <Menu>
             <Menu.Button>Trigger</Menu.Button>
             <Menu.Items>
-              <Menu.Item>Item A</Menu.Item>
-              <Menu.Item disabled>Item B</Menu.Item>
-              <Menu.Item disabled>Item C</Menu.Item>
+              <Menu.Item as="a">Item A</Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item B
+              </Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item C
+              </Menu.Item>
             </Menu.Items>
           </Menu>
         )
@@ -1176,9 +1226,13 @@ describe('keyboard interactions', () => {
           <Menu>
             <Menu.Button>Trigger</Menu.Button>
             <Menu.Items>
-              <Menu.Item disabled>Item A</Menu.Item>
-              <Menu.Item disabled>Item B</Menu.Item>
-              <Menu.Item>Item C</Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item A
+              </Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item B
+              </Menu.Item>
+              <Menu.Item as="a">Item C</Menu.Item>
             </Menu.Items>
           </Menu>
         )
@@ -1218,9 +1272,9 @@ describe('keyboard interactions', () => {
           <Menu>
             <Menu.Button>Trigger</Menu.Button>
             <Menu.Items>
-              <Menu.Item>Item A</Menu.Item>
-              <Menu.Item>Item B</Menu.Item>
-              <Menu.Item>Item C</Menu.Item>
+              <Menu.Item as="a">Item A</Menu.Item>
+              <Menu.Item as="a">Item B</Menu.Item>
+              <Menu.Item as="a">Item C</Menu.Item>
             </Menu.Items>
           </Menu>
         )
@@ -1274,9 +1328,9 @@ describe('keyboard interactions', () => {
           <Menu>
             <Menu.Button>Trigger</Menu.Button>
             <Menu.Items>
-              <Menu.Item>Item A</Menu.Item>
-              <Menu.Item>Item B</Menu.Item>
-              <Menu.Item>Item C</Menu.Item>
+              <Menu.Item as="a">Item A</Menu.Item>
+              <Menu.Item as="a">Item B</Menu.Item>
+              <Menu.Item as="a">Item C</Menu.Item>
             </Menu.Items>
           </Menu>
         )
@@ -1305,10 +1359,14 @@ describe('keyboard interactions', () => {
           <Menu>
             <Menu.Button>Trigger</Menu.Button>
             <Menu.Items>
-              <Menu.Item>Item A</Menu.Item>
-              <Menu.Item>Item B</Menu.Item>
-              <Menu.Item disabled>Item C</Menu.Item>
-              <Menu.Item disabled>Item D</Menu.Item>
+              <Menu.Item as="a">Item A</Menu.Item>
+              <Menu.Item as="a">Item B</Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item C
+              </Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item D
+              </Menu.Item>
             </Menu.Items>
           </Menu>
         )
@@ -1337,10 +1395,16 @@ describe('keyboard interactions', () => {
           <Menu>
             <Menu.Button>Trigger</Menu.Button>
             <Menu.Items>
-              <Menu.Item>Item A</Menu.Item>
-              <Menu.Item disabled>Item B</Menu.Item>
-              <Menu.Item disabled>Item C</Menu.Item>
-              <Menu.Item disabled>Item D</Menu.Item>
+              <Menu.Item as="a">Item A</Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item B
+              </Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item C
+              </Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item D
+              </Menu.Item>
             </Menu.Items>
           </Menu>
         )
@@ -1366,10 +1430,18 @@ describe('keyboard interactions', () => {
           <Menu>
             <Menu.Button>Trigger</Menu.Button>
             <Menu.Items>
-              <Menu.Item disabled>Item A</Menu.Item>
-              <Menu.Item disabled>Item B</Menu.Item>
-              <Menu.Item disabled>Item C</Menu.Item>
-              <Menu.Item disabled>Item D</Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item A
+              </Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item B
+              </Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item C
+              </Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item D
+              </Menu.Item>
             </Menu.Items>
           </Menu>
         )
@@ -1396,9 +1468,9 @@ describe('keyboard interactions', () => {
           <Menu>
             <Menu.Button>Trigger</Menu.Button>
             <Menu.Items>
-              <Menu.Item>Item A</Menu.Item>
-              <Menu.Item>Item B</Menu.Item>
-              <Menu.Item>Item C</Menu.Item>
+              <Menu.Item as="a">Item A</Menu.Item>
+              <Menu.Item as="a">Item B</Menu.Item>
+              <Menu.Item as="a">Item C</Menu.Item>
             </Menu.Items>
           </Menu>
         )
@@ -1427,10 +1499,14 @@ describe('keyboard interactions', () => {
           <Menu>
             <Menu.Button>Trigger</Menu.Button>
             <Menu.Items>
-              <Menu.Item>Item A</Menu.Item>
-              <Menu.Item>Item B</Menu.Item>
-              <Menu.Item disabled>Item C</Menu.Item>
-              <Menu.Item disabled>Item D</Menu.Item>
+              <Menu.Item as="a">Item A</Menu.Item>
+              <Menu.Item as="a">Item B</Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item C
+              </Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item D
+              </Menu.Item>
             </Menu.Items>
           </Menu>
         )
@@ -1459,10 +1535,16 @@ describe('keyboard interactions', () => {
           <Menu>
             <Menu.Button>Trigger</Menu.Button>
             <Menu.Items>
-              <Menu.Item>Item A</Menu.Item>
-              <Menu.Item disabled>Item B</Menu.Item>
-              <Menu.Item disabled>Item C</Menu.Item>
-              <Menu.Item disabled>Item D</Menu.Item>
+              <Menu.Item as="a">Item A</Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item B
+              </Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item C
+              </Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item D
+              </Menu.Item>
             </Menu.Items>
           </Menu>
         )
@@ -1488,10 +1570,18 @@ describe('keyboard interactions', () => {
           <Menu>
             <Menu.Button>Trigger</Menu.Button>
             <Menu.Items>
-              <Menu.Item disabled>Item A</Menu.Item>
-              <Menu.Item disabled>Item B</Menu.Item>
-              <Menu.Item disabled>Item C</Menu.Item>
-              <Menu.Item disabled>Item D</Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item A
+              </Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item B
+              </Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item C
+              </Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item D
+              </Menu.Item>
             </Menu.Items>
           </Menu>
         )
@@ -1518,9 +1608,9 @@ describe('keyboard interactions', () => {
           <Menu>
             <Menu.Button>Trigger</Menu.Button>
             <Menu.Items>
-              <Menu.Item>Item A</Menu.Item>
-              <Menu.Item>Item B</Menu.Item>
-              <Menu.Item>Item C</Menu.Item>
+              <Menu.Item as="a">Item A</Menu.Item>
+              <Menu.Item as="a">Item B</Menu.Item>
+              <Menu.Item as="a">Item C</Menu.Item>
             </Menu.Items>
           </Menu>
         )
@@ -1549,10 +1639,14 @@ describe('keyboard interactions', () => {
           <Menu>
             <Menu.Button>Trigger</Menu.Button>
             <Menu.Items>
-              <Menu.Item disabled>Item A</Menu.Item>
-              <Menu.Item disabled>Item B</Menu.Item>
-              <Menu.Item>Item C</Menu.Item>
-              <Menu.Item>Item D</Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item A
+              </Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item B
+              </Menu.Item>
+              <Menu.Item as="a">Item C</Menu.Item>
+              <Menu.Item as="a">Item D</Menu.Item>
             </Menu.Items>
           </Menu>
         )
@@ -1580,10 +1674,16 @@ describe('keyboard interactions', () => {
           <Menu>
             <Menu.Button>Trigger</Menu.Button>
             <Menu.Items>
-              <Menu.Item disabled>Item A</Menu.Item>
-              <Menu.Item disabled>Item B</Menu.Item>
-              <Menu.Item disabled>Item C</Menu.Item>
-              <Menu.Item>Item D</Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item A
+              </Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item B
+              </Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item C
+              </Menu.Item>
+              <Menu.Item as="a">Item D</Menu.Item>
             </Menu.Items>
           </Menu>
         )
@@ -1609,10 +1709,18 @@ describe('keyboard interactions', () => {
           <Menu>
             <Menu.Button>Trigger</Menu.Button>
             <Menu.Items>
-              <Menu.Item disabled>Item A</Menu.Item>
-              <Menu.Item disabled>Item B</Menu.Item>
-              <Menu.Item disabled>Item C</Menu.Item>
-              <Menu.Item disabled>Item D</Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item A
+              </Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item B
+              </Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item C
+              </Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item D
+              </Menu.Item>
             </Menu.Items>
           </Menu>
         )
@@ -1639,9 +1747,9 @@ describe('keyboard interactions', () => {
           <Menu>
             <Menu.Button>Trigger</Menu.Button>
             <Menu.Items>
-              <Menu.Item>Item A</Menu.Item>
-              <Menu.Item>Item B</Menu.Item>
-              <Menu.Item>Item C</Menu.Item>
+              <Menu.Item as="a">Item A</Menu.Item>
+              <Menu.Item as="a">Item B</Menu.Item>
+              <Menu.Item as="a">Item C</Menu.Item>
             </Menu.Items>
           </Menu>
         )
@@ -1670,10 +1778,14 @@ describe('keyboard interactions', () => {
           <Menu>
             <Menu.Button>Trigger</Menu.Button>
             <Menu.Items>
-              <Menu.Item disabled>Item A</Menu.Item>
-              <Menu.Item disabled>Item B</Menu.Item>
-              <Menu.Item>Item C</Menu.Item>
-              <Menu.Item>Item D</Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item A
+              </Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item B
+              </Menu.Item>
+              <Menu.Item as="a">Item C</Menu.Item>
+              <Menu.Item as="a">Item D</Menu.Item>
             </Menu.Items>
           </Menu>
         )
@@ -1701,10 +1813,16 @@ describe('keyboard interactions', () => {
           <Menu>
             <Menu.Button>Trigger</Menu.Button>
             <Menu.Items>
-              <Menu.Item disabled>Item A</Menu.Item>
-              <Menu.Item disabled>Item B</Menu.Item>
-              <Menu.Item disabled>Item C</Menu.Item>
-              <Menu.Item>Item D</Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item A
+              </Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item B
+              </Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item C
+              </Menu.Item>
+              <Menu.Item as="a">Item D</Menu.Item>
             </Menu.Items>
           </Menu>
         )
@@ -1730,10 +1848,18 @@ describe('keyboard interactions', () => {
           <Menu>
             <Menu.Button>Trigger</Menu.Button>
             <Menu.Items>
-              <Menu.Item disabled>Item A</Menu.Item>
-              <Menu.Item disabled>Item B</Menu.Item>
-              <Menu.Item disabled>Item C</Menu.Item>
-              <Menu.Item disabled>Item D</Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item A
+              </Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item B
+              </Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item C
+              </Menu.Item>
+              <Menu.Item as="a" disabled>
+                Item D
+              </Menu.Item>
             </Menu.Items>
           </Menu>
         )
@@ -1760,9 +1886,9 @@ describe('keyboard interactions', () => {
           <Menu>
             <Menu.Button>Trigger</Menu.Button>
             <Menu.Items>
-              <Menu.Item>alice</Menu.Item>
-              <Menu.Item>bob</Menu.Item>
-              <Menu.Item>charlie</Menu.Item>
+              <Menu.Item as="a">alice</Menu.Item>
+              <Menu.Item as="a">bob</Menu.Item>
+              <Menu.Item as="a">charlie</Menu.Item>
             </Menu.Items>
           </Menu>
         )
@@ -1793,9 +1919,9 @@ describe('keyboard interactions', () => {
           <Menu>
             <Menu.Button>Trigger</Menu.Button>
             <Menu.Items>
-              <Menu.Item>alice</Menu.Item>
-              <Menu.Item>bob</Menu.Item>
-              <Menu.Item>charlie</Menu.Item>
+              <Menu.Item as="a">alice</Menu.Item>
+              <Menu.Item as="a">bob</Menu.Item>
+              <Menu.Item as="a">charlie</Menu.Item>
             </Menu.Items>
           </Menu>
         )
@@ -1832,9 +1958,11 @@ describe('keyboard interactions', () => {
           <Menu>
             <Menu.Button>Trigger</Menu.Button>
             <Menu.Items>
-              <Menu.Item>alice</Menu.Item>
-              <Menu.Item disabled>bob</Menu.Item>
-              <Menu.Item>charlie</Menu.Item>
+              <Menu.Item as="a">alice</Menu.Item>
+              <Menu.Item as="a" disabled>
+                bob
+              </Menu.Item>
+              <Menu.Item as="a">charlie</Menu.Item>
             </Menu.Items>
           </Menu>
         )
@@ -1860,7 +1988,7 @@ describe('keyboard interactions', () => {
   })
 })
 
-describe('mouse interactions', () => {
+describe('Mouse interactions', () => {
   it(
     'should be possible to open a menu on click',
     suppressConsoleLogs(async () => {
@@ -1868,9 +1996,9 @@ describe('mouse interactions', () => {
         <Menu>
           <Menu.Button>Trigger</Menu.Button>
           <Menu.Items>
-            <Menu.Item>Item A</Menu.Item>
-            <Menu.Item>Item B</Menu.Item>
-            <Menu.Item>Item C</Menu.Item>
+            <Menu.Item as="a">Item A</Menu.Item>
+            <Menu.Item as="a">Item B</Menu.Item>
+            <Menu.Item as="a">Item C</Menu.Item>
           </Menu.Items>
         </Menu>
       )
@@ -1906,9 +2034,9 @@ describe('mouse interactions', () => {
         <Menu>
           <Menu.Button>Trigger</Menu.Button>
           <Menu.Items>
-            <Menu.Item>Item A</Menu.Item>
-            <Menu.Item>Item B</Menu.Item>
-            <Menu.Item>Item C</Menu.Item>
+            <Menu.Item as="a">Item A</Menu.Item>
+            <Menu.Item as="a">Item B</Menu.Item>
+            <Menu.Item as="a">Item C</Menu.Item>
           </Menu.Items>
         </Menu>
       )
@@ -1933,9 +2061,9 @@ describe('mouse interactions', () => {
       <Menu>
         <Menu.Button>Trigger</Menu.Button>
         <Menu.Items>
-          <Menu.Item>Item A</Menu.Item>
-          <Menu.Item>Item B</Menu.Item>
-          <Menu.Item>Item C</Menu.Item>
+          <Menu.Item as="a">Item A</Menu.Item>
+          <Menu.Item as="a">Item B</Menu.Item>
+          <Menu.Item as="a">Item C</Menu.Item>
         </Menu.Items>
       </Menu>
     )
@@ -1960,9 +2088,9 @@ describe('mouse interactions', () => {
         <Menu>
           <Menu.Button>Trigger</Menu.Button>
           <Menu.Items>
-            <Menu.Item>alice</Menu.Item>
-            <Menu.Item>bob</Menu.Item>
-            <Menu.Item>charlie</Menu.Item>
+            <Menu.Item as="a">alice</Menu.Item>
+            <Menu.Item as="a">bob</Menu.Item>
+            <Menu.Item as="a">charlie</Menu.Item>
           </Menu.Items>
         </Menu>
       )
@@ -1985,9 +2113,9 @@ describe('mouse interactions', () => {
         <Menu>
           <Menu.Button>Trigger</Menu.Button>
           <Menu.Items>
-            <Menu.Item>alice</Menu.Item>
-            <Menu.Item>bob</Menu.Item>
-            <Menu.Item>charlie</Menu.Item>
+            <Menu.Item as="a">alice</Menu.Item>
+            <Menu.Item as="a">bob</Menu.Item>
+            <Menu.Item as="a">charlie</Menu.Item>
           </Menu.Items>
         </Menu>
       )
@@ -2011,9 +2139,9 @@ describe('mouse interactions', () => {
         <Menu>
           <Menu.Button>Trigger</Menu.Button>
           <Menu.Items>
-            <Menu.Item>alice</Menu.Item>
-            <Menu.Item>bob</Menu.Item>
-            <Menu.Item>charlie</Menu.Item>
+            <Menu.Item as="a">alice</Menu.Item>
+            <Menu.Item as="a">bob</Menu.Item>
+            <Menu.Item as="a">charlie</Menu.Item>
           </Menu.Items>
         </Menu>
       )
@@ -2037,9 +2165,9 @@ describe('mouse interactions', () => {
         <Menu>
           <Menu.Button>Trigger</Menu.Button>
           <Menu.Items>
-            <Menu.Item>alice</Menu.Item>
-            <Menu.Item>bob</Menu.Item>
-            <Menu.Item>charlie</Menu.Item>
+            <Menu.Item as="a">alice</Menu.Item>
+            <Menu.Item as="a">bob</Menu.Item>
+            <Menu.Item as="a">charlie</Menu.Item>
           </Menu.Items>
         </Menu>
       )
@@ -2069,9 +2197,9 @@ describe('mouse interactions', () => {
         <Menu>
           <Menu.Button>Trigger</Menu.Button>
           <Menu.Items>
-            <Menu.Item>alice</Menu.Item>
-            <Menu.Item>bob</Menu.Item>
-            <Menu.Item>charlie</Menu.Item>
+            <Menu.Item as="a">alice</Menu.Item>
+            <Menu.Item as="a">bob</Menu.Item>
+            <Menu.Item as="a">charlie</Menu.Item>
           </Menu.Items>
         </Menu>
       )
@@ -2093,9 +2221,9 @@ describe('mouse interactions', () => {
         <Menu>
           <Menu.Button>Trigger</Menu.Button>
           <Menu.Items>
-            <Menu.Item>alice</Menu.Item>
-            <Menu.Item>bob</Menu.Item>
-            <Menu.Item>charlie</Menu.Item>
+            <Menu.Item as="a">alice</Menu.Item>
+            <Menu.Item as="a">bob</Menu.Item>
+            <Menu.Item as="a">charlie</Menu.Item>
           </Menu.Items>
         </Menu>
       )
@@ -2123,9 +2251,11 @@ describe('mouse interactions', () => {
         <Menu>
           <Menu.Button>Trigger</Menu.Button>
           <Menu.Items>
-            <Menu.Item>alice</Menu.Item>
-            <Menu.Item disabled>bob</Menu.Item>
-            <Menu.Item>charlie</Menu.Item>
+            <Menu.Item as="a">alice</Menu.Item>
+            <Menu.Item as="a" disabled>
+              bob
+            </Menu.Item>
+            <Menu.Item as="a">charlie</Menu.Item>
           </Menu.Items>
         </Menu>
       )
@@ -2147,9 +2277,11 @@ describe('mouse interactions', () => {
         <Menu>
           <Menu.Button>Trigger</Menu.Button>
           <Menu.Items>
-            <Menu.Item>alice</Menu.Item>
-            <Menu.Item disabled>bob</Menu.Item>
-            <Menu.Item>charlie</Menu.Item>
+            <Menu.Item as="a">alice</Menu.Item>
+            <Menu.Item as="a" disabled>
+              bob
+            </Menu.Item>
+            <Menu.Item as="a">charlie</Menu.Item>
           </Menu.Items>
         </Menu>
       )
@@ -2174,9 +2306,9 @@ describe('mouse interactions', () => {
         <Menu>
           <Menu.Button>Trigger</Menu.Button>
           <Menu.Items>
-            <Menu.Item>alice</Menu.Item>
-            <Menu.Item>bob</Menu.Item>
-            <Menu.Item>charlie</Menu.Item>
+            <Menu.Item as="a">alice</Menu.Item>
+            <Menu.Item as="a">bob</Menu.Item>
+            <Menu.Item as="a">charlie</Menu.Item>
           </Menu.Items>
         </Menu>
       )
@@ -2216,9 +2348,11 @@ describe('mouse interactions', () => {
         <Menu>
           <Menu.Button>Trigger</Menu.Button>
           <Menu.Items>
-            <Menu.Item>alice</Menu.Item>
-            <Menu.Item disabled>bob</Menu.Item>
-            <Menu.Item>charlie</Menu.Item>
+            <Menu.Item as="a">alice</Menu.Item>
+            <Menu.Item as="a" disabled>
+              bob
+            </Menu.Item>
+            <Menu.Item as="a">charlie</Menu.Item>
           </Menu.Items>
         </Menu>
       )
@@ -2244,9 +2378,9 @@ describe('mouse interactions', () => {
         <Menu>
           <Menu.Button>Trigger</Menu.Button>
           <Menu.Items>
-            <Menu.Item>alice</Menu.Item>
-            <Menu.Item>bob</Menu.Item>
-            <Menu.Item>charlie</Menu.Item>
+            <Menu.Item as="a">alice</Menu.Item>
+            <Menu.Item as="a">bob</Menu.Item>
+            <Menu.Item as="a">charlie</Menu.Item>
           </Menu.Items>
         </Menu>
       )
@@ -2270,9 +2404,11 @@ describe('mouse interactions', () => {
         <Menu>
           <Menu.Button>Trigger</Menu.Button>
           <Menu.Items>
-            <Menu.Item>alice</Menu.Item>
-            <Menu.Item disabled>bob</Menu.Item>
-            <Menu.Item>charlie</Menu.Item>
+            <Menu.Item as="a">alice</Menu.Item>
+            <Menu.Item as="a" disabled>
+              bob
+            </Menu.Item>
+            <Menu.Item as="a">charlie</Menu.Item>
           </Menu.Items>
         </Menu>
       )
@@ -2296,9 +2432,9 @@ describe('mouse interactions', () => {
         <Menu>
           <Menu.Button>Trigger</Menu.Button>
           <Menu.Items>
-            <Menu.Item>alice</Menu.Item>
-            <Menu.Item>bob</Menu.Item>
-            <Menu.Item>charlie</Menu.Item>
+            <Menu.Item as="a">alice</Menu.Item>
+            <Menu.Item as="a">bob</Menu.Item>
+            <Menu.Item as="a">charlie</Menu.Item>
           </Menu.Items>
         </Menu>
       )
@@ -2325,9 +2461,11 @@ describe('mouse interactions', () => {
         <Menu>
           <Menu.Button>Trigger</Menu.Button>
           <Menu.Items>
-            <Menu.Item>alice</Menu.Item>
-            <Menu.Item disabled>bob</Menu.Item>
-            <Menu.Item>charlie</Menu.Item>
+            <Menu.Item as="a">alice</Menu.Item>
+            <Menu.Item as="a" disabled>
+              bob
+            </Menu.Item>
+            <Menu.Item as="a">charlie</Menu.Item>
           </Menu.Items>
         </Menu>
       )
@@ -2353,11 +2491,15 @@ describe('mouse interactions', () => {
         <Menu>
           <Menu.Button>Trigger</Menu.Button>
           <Menu.Items>
-            <Menu.Item onClick={clickHandler}>alice</Menu.Item>
-            <Menu.Item onClick={clickHandler} disabled>
+            <Menu.Item as="a" onClick={clickHandler}>
+              alice
+            </Menu.Item>
+            <Menu.Item as="a" onClick={clickHandler} disabled>
               bob
             </Menu.Item>
-            <Menu.Item onClick={clickHandler}>charlie</Menu.Item>
+            <Menu.Item as="a" onClick={clickHandler}>
+              charlie
+            </Menu.Item>
           </Menu.Items>
         </Menu>
       )

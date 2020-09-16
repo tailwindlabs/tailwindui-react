@@ -39,12 +39,42 @@ export function render<T extends React.ElementType, TBag>(
       returnValue,
 
       // Filter out undefined values so that they don't override the existing values
-      Object.fromEntries(Object.entries(rest).filter(([, value]) => value !== undefined))
+      compact(omit(rest, ['as']))
     )
   }
 
   if (isAsShortcut(props)) {
-    const { as: Component = tag, ...rest } = props
+    const { as: Component = tag, ...rest } = props as AsShortcut<T> & {
+      children: React.ReactElement
+    }
+
+    if (Component === React.Fragment) {
+      const { children, ...passThroughProps } = rest
+
+      if (Object.keys(passThroughProps).length > 0) {
+        if (Array.isArray(children) && children.length > 1) {
+          const err = new Error('You should only render 1 child')
+          if (Error.captureStackTrace) Error.captureStackTrace(err, render)
+          throw err
+        }
+
+        if (!React.isValidElement(children)) {
+          const err = new Error(
+            `You should render an element as a child. Did you forget the as="..." prop?`
+          )
+          if (Error.captureStackTrace) Error.captureStackTrace(err, render)
+          throw err
+        }
+
+        return React.cloneElement(
+          children,
+
+          // Filter out undefined values so that they don't override the existing values
+          compact(omit(passThroughProps, ['as']))
+        )
+      }
+    }
+
     return <Component {...rest} />
   }
 
@@ -57,4 +87,18 @@ export function render<T extends React.ElementType, TBag>(
  */
 export function forwardRefWithAs<T>(component: T): T {
   return React.forwardRef((component as unknown) as any) as any
+}
+
+function omit<T extends Record<any, any>>(object: T, skip: string[]) {
+  let clone = Object.assign({}, object)
+  for (let key of skip) delete clone[key]
+  return clone
+}
+
+function compact<T extends Record<any, any>>(object: T) {
+  let clone = Object.assign({}, object)
+  for (let key in clone) {
+    if (clone[key] === undefined) delete clone[key]
+  }
+  return clone
 }

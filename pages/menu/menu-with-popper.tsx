@@ -57,7 +57,13 @@ function usePopper(
   )
 }
 
-function Portal({ children }: { children: React.ReactNode }) {
+function Portal(props: { children: React.ReactNode }) {
+  const { children } = props
+  const [mounted, setMounted] = React.useState(false)
+
+  React.useEffect(() => setMounted(true), [])
+
+  if (!mounted) return null
   return ReactDOM.createPortal(children, document.body)
 }
 
@@ -156,6 +162,7 @@ function SignOutButton(props) {
 function Item(props: PropsOf<typeof Menu.Item>) {
   return (
     <Menu.Item
+      as="a"
       className={({ active, disabled }) =>
         classNames(
           'block w-full text-left px-4 py-2 text-sm leading-5 text-gray-700',

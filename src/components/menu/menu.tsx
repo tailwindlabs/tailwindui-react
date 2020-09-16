@@ -41,7 +41,6 @@ type StateDefinition = {
   menuState: MenuStates
   buttonRef: React.MutableRefObject<HTMLButtonElement | null>
   itemsRef: React.MutableRefObject<HTMLDivElement | null>
-  rootUsesRenderProp: boolean
   items: { id: string; dataRef: MenuItemDataRef }[]
   searchQuery: string
   activeItemIndex: number | null
@@ -214,7 +213,6 @@ function useMenuContext(component: string) {
 
 const defaultState: StateDefinition = {
   menuState: MenuStates.Closed,
-  rootUsesRenderProp: false,
   buttonRef: React.createRef(),
   itemsRef: React.createRef(),
   items: [],
@@ -226,14 +224,17 @@ function stateReducer(state: StateDefinition, action: Actions) {
   return match(action.type, reducers, state, action)
 }
 
-export function Menu(props: {
-  children: ((props: { show: boolean }) => React.ReactNode) | React.ReactNode
-}) {
+// ---
+
+const DEFAULT_MENU_TAG = React.Fragment
+
+type MenuRenderPropArg = { open: boolean }
+
+export function Menu<TTag extends React.ElementType = typeof DEFAULT_MENU_TAG>(
+  props: AsShortcut<TTag> | AsRenderProp<MenuRenderPropArg>
+) {
   const d = useDisposables()
-  const reducerBag = React.useReducer(
-    stateReducer,
-    Object.assign({}, defaultState, { rootUsesRenderProp: typeof props.children === 'function' })
-  )
+  const reducerBag = React.useReducer(stateReducer, defaultState)
   const [{ menuState, itemsRef, buttonRef }, dispatch] = reducerBag
 
   React.useEffect(() => {
@@ -251,15 +252,13 @@ export function Menu(props: {
     return () => window.removeEventListener('pointerdown', handler)
   }, [menuState, itemsRef, buttonRef, d, dispatch])
 
-  const propsBag = React.useMemo(() => ({ show: menuState === MenuStates.Open }), [menuState])
+  const propsBag = React.useMemo(() => ({ open: menuState === MenuStates.Open }), [menuState])
 
-  if (typeof props.children === 'function') {
-    return (
-      <MenuContext.Provider value={reducerBag}>{props.children(propsBag)}</MenuContext.Provider>
-    )
-  }
-
-  return <MenuContext.Provider value={reducerBag}>{props.children}</MenuContext.Provider>
+  return (
+    <MenuContext.Provider value={reducerBag}>
+      {render(props, propsBag, DEFAULT_MENU_TAG)}
+    </MenuContext.Provider>
+  )
 }
 
 // ---
@@ -279,7 +278,7 @@ type ButtonPropsWeControl =
 
 const DEFAULT_BUTTON_TAG = 'button'
 
-type ButtonRenderPropArg = { show: boolean; focused: boolean }
+type ButtonRenderPropArg = { open: boolean; focused: boolean }
 
 const Button = forwardRefWithAs(function Button<
   TTag extends React.ElementType = typeof DEFAULT_BUTTON_TAG
@@ -345,7 +344,7 @@ const Button = forwardRefWithAs(function Button<
     if (usingRenderProp) setFocused(false)
   }, [usingRenderProp, setFocused])
 
-  const propsBag = React.useMemo(() => ({ show: state.menuState === MenuStates.Open, focused }), [
+  const propsBag = React.useMemo(() => ({ open: state.menuState === MenuStates.Open, focused }), [
     state,
     focused,
   ])
@@ -380,16 +379,25 @@ type ItemsPropsWeControl =
 
 const DEFAULT_ITEMS_TAG = 'div'
 
-type ItemsRenderPropArg = { show: boolean }
+type ItemsRenderPropArg = { open: boolean }
 
 const Items = forwardRefWithAs(function Items<
   TTag extends React.ElementType = typeof DEFAULT_ITEMS_TAG
 >(
   props: (AsShortcut<TTag, ItemsPropsWeControl> | AsRenderProp<ItemsRenderPropArg>) &
-    TransitionClasses,
+    TransitionClasses & { static?: boolean },
   ref: React.Ref<HTMLDivElement>
 ) {
-  const { enter, enterFrom, enterTo, leave, leaveFrom, leaveTo, ...passthroughProps } = props
+  const {
+    enter,
+    enterFrom,
+    enterTo,
+    leave,
+    leaveFrom,
+    leaveTo,
+    static: isStatic = false,
+    ...passthroughProps
+  } = props
   const [state, dispatch] = useMenuContext([Menu.name, Items.name].join('.'))
   const itemsRef = useSyncRefs(state.itemsRef, ref)
 
@@ -446,7 +454,7 @@ const Items = forwardRefWithAs(function Items<
     [d, dispatch, searchDisposables, state]
   )
 
-  const propsBag = React.useMemo(() => ({ show: state.menuState === MenuStates.Open }), [state])
+  const propsBag = React.useMemo(() => ({ open: state.menuState === MenuStates.Open }), [state])
   const propsWeControl = {
     'aria-activedescendant':
       state.activeItemIndex === null ? undefined : state.items[state.activeItemIndex]?.id,
@@ -457,7 +465,7 @@ const Items = forwardRefWithAs(function Items<
     tabIndex: 0,
   }
 
-  if (state.rootUsesRenderProp) {
+  if (isStatic) {
     return render(
       { ...passthroughProps, ...propsWeControl, ...{ ref: itemsRef } },
       propsBag,
@@ -502,7 +510,7 @@ type MenuItemPropsWeControl =
   | 'onPointerUp'
   | 'onFocus'
 
-const DEFAULT_ITEM_TAG = 'a'
+const DEFAULT_ITEM_TAG = React.Fragment
 
 type ItemRenderPropArg = { active: boolean; disabled: boolean }
 
