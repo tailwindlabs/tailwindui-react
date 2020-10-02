@@ -1,3 +1,9 @@
+<p align="center">
+  <h1 align="center">⚠️ Deprecated: use <a href="https://github.com/tailwindlabs/headlessui/">Headless UI</a> instead ⚠️</h1>
+</p>
+
+---
+
 <h3 align="center">
   @tailwindui/react
 </h3>
